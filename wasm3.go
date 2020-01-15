@@ -93,6 +93,11 @@ func(r *Runtime) FindFunction(funcName string) (Function, error) {
 	return fnWrapper, nil
 }
 
+// Destroy free calls m3_FreeRuntime
+func(r *Runtime) Destroy() {
+    C.m3_FreeRuntime(r.Ptr());
+}
+
 // NewRuntime initializes a new runtime
 // TODO: nativeStackInfo is passed as NULL
 func NewRuntime(env *Environment, stackSize uint) *Runtime {
@@ -118,6 +123,11 @@ type Environment struct {
 // Ptr returns a pointer to IM3Environment
 func(e *Environment) Ptr() C.IM3Environment {
 	return (C.IM3Environment)(e.ptr)
+}
+
+// Destroy calls m3_FreeEnvironment
+func(e *Environment) Destroy() {
+	C.m3_FreeEnvironment(e.Ptr())
 }
 
 // NewEnvironment initializes a new environment

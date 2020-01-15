@@ -16,7 +16,9 @@ func main() {
 	log.Print("Initializing WASM3")
 
 	env := wasm3.NewEnvironment()
+	defer env.Destroy()
 	runtime := wasm3.NewRuntime(env, 64*1024)
+	defer runtime.Destroy()
 	log.Println("Runtime ok")
 
 	wasmBytes, err := ioutil.ReadFile(wasmFilename)

@@ -21,7 +21,9 @@ func init() {
 
 func TestSum(t *testing.T) {
 	env := wasm3.NewEnvironment()
+	defer env.Destroy()
 	runtime := wasm3.NewRuntime(env, 64*1024)
+	defer runtime.Destroy()
 	_, err := runtime.Load(wasmBytes)
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +38,9 @@ func TestSum(t *testing.T) {
 func BenchmarkSum(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		env := wasm3.NewEnvironment()
+		defer env.Destroy()
 		runtime := wasm3.NewRuntime(env, 64*1024)
+		defer runtime.Destroy()
 		_, err := runtime.Load(wasmBytes)
 		if err != nil {
 			b.Fatal(err)
@@ -51,7 +55,9 @@ func BenchmarkSum(b *testing.B) {
 
 func BenchmarkSumReentrant(b *testing.B) {
 	env := wasm3.NewEnvironment()
+	defer env.Destroy()
 	runtime := wasm3.NewRuntime(env, 64*1024)
+	defer runtime.Destroy()
 	_, err := runtime.Load(wasmBytes)
 	if err != nil {
 		b.Fatal(err)
