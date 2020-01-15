@@ -11,7 +11,6 @@ import "C"
 
 import(
 	"unsafe"
-	"fmt"
 	"errors"
 )
 
@@ -48,7 +47,6 @@ func(r *Runtime) Load(wasmBytes []byte) (ModuleT, error) {
 	bytes := C.CBytes(wasmBytes)
 	length := len(wasmBytes)
 	var module C.IM3Module
-	fmt.Printf("module=%p\n",module)
 	result = C.m3_ParseModule(
 		r.Environment.Ptr(),
 		&module,
