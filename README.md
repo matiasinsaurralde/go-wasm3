@@ -1,6 +1,8 @@
 go-wasm3
 ==
 
+[![CircleCI](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master.svg?style=svg)](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master)
+
 Golang wrapper for [WASM3](https://github.com/wasm3/wasm3), WIP.
 
 This is part of a series of WASM-related experiments: [go-wavm](https://github.com/matiasinsaurralde/go-wavm) and [go-wasm-benchmark](https://github.com/matiasinsaurralde/go-wasm-benchmark).
