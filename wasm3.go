@@ -48,7 +48,9 @@ type Runtime struct {
 func(r *Runtime) Ptr() C.IM3Runtime {
 	return (C.IM3Runtime)(r.ptr)
 }
+
 // Load wraps the parse and load module calls.
+// This will be replaced by env.ParseModule and Runtime.LoadModule.
 func(r *Runtime) Load(wasmBytes []byte) (*Module, error) {
 	result := C.m3Err_none
 	bytes := C.CBytes(wasmBytes)
@@ -70,12 +72,29 @@ func(r *Runtime) Load(wasmBytes []byte) (*Module, error) {
 	if result != nil {
 		return nil, errLoadModule
 	}
-	result = C.m3_LinkSpecTest((C.IM3Runtime)(r.Ptr()).modules)
+	result = C.m3_LinkSpecTest(r.Ptr().modules)
 	if result != nil {
 		return nil, errors.New("LinkSpecTest failed")
 	}
 	m := NewModule((ModuleT)(module))
 	return m, nil
+}
+
+// LoadModule wraps m3_LoadModule and returns a module object
+func(r *Runtime) LoadModule(module *Module) (*Module, error) {
+	result := C.m3Err_none
+	result = C.m3_LoadModule(
+		r.Ptr(),
+		module.Ptr(),
+	)
+	if result != nil {
+		return nil, errLoadModule
+	}
+	result = C.m3_LinkSpecTest(r.Ptr().modules)
+	if result != nil {
+		return nil, errors.New("LinkSpecTest failed")
+	}
+	return module, nil
 }
 
 // FindFunction calls m3_FindFunction and returns a call function
@@ -169,8 +188,9 @@ func(m *Module) GetFunctionByName(lookupName string) (*Function, error) {
 
 // NumFunctions provides access to numFunctions.
 func(m *Module) NumFunctions() int {
+	// In case the number of functions hasn't been resolved yet, retrieve the int and keep it in the structure
 	if m.numFunctions == -1 {
-		return int(m.Ptr().numFunctions)
+		m.numFunctions = int(m.Ptr().numFunctions)
 	}
 	return m.numFunctions
 }
@@ -199,11 +219,39 @@ func(f *Function) Ptr() C.IM3Function {
 	return (C.IM3Function)(f.ptr)
 }
 
+// Call wraps m3_CallWithArgs
+func(f *Function) Call(args... string) {
+	length := len(args)
+	cArgs := make([]*C.char, length)
+	for i, v := range args {
+		cVal := C.CString(v)
+		cArgs[i] = cVal
+	}
+	C.m3_CallWithArgs(f.Ptr(), C.uint(length), &cArgs[0])
+}
+
 // Environment wraps a WASM3 environment
 type Environment struct {
 	ptr EnvironmentT
 }
 
+// ParseModule wraps m3_ParseModule
+func(e *Environment) ParseModule(wasmBytes []byte) (*Module, error) {
+	result := C.m3Err_none
+	bytes := C.CBytes(wasmBytes)
+	length := len(wasmBytes)
+	var module C.IM3Module
+	result = C.m3_ParseModule(
+		e.Ptr(),
+		&module,
+		(*C.uchar)(bytes),
+		C.uint(length),
+	)
+	if result != nil {
+		return nil, errParseModule
+	}
+	return NewModule((ModuleT)(module)), nil
+}
 // Ptr returns a pointer to IM3Environment
 func(e *Environment) Ptr() C.IM3Environment {
 	return (C.IM3Environment)(e.ptr)
