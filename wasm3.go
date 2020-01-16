@@ -6,6 +6,13 @@ package wasm3
 #cgo linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
 #include "m3.h"
 #include "m3_api_libc.h"
+#include "m3_env.h"
+
+// module_get_function is a helper function for the module Go struct
+IM3Function module_get_function(IM3Module i_module, int index) {
+	IM3Function f = & i_module->functions [index];
+	return f;
+}
 */
 import "C"
 
@@ -42,7 +49,7 @@ func(r *Runtime) Ptr() C.IM3Runtime {
 	return (C.IM3Runtime)(r.ptr)
 }
 // Load wraps the parse and load module calls.
-func(r *Runtime) Load(wasmBytes []byte) (ModuleT, error) {
+func(r *Runtime) Load(wasmBytes []byte) (*Module, error) {
 	result := C.m3Err_none
 	bytes := C.CBytes(wasmBytes)
 	length := len(wasmBytes)
@@ -63,12 +70,16 @@ func(r *Runtime) Load(wasmBytes []byte) (ModuleT, error) {
 	if result != nil {
 		return nil, errLoadModule
 	}
-	// result = C.m3_LinkSpecTest((C.IM3Runtime)(r.Ptr()).modules)
-	return (ModuleT)(module), nil
+	result = C.m3_LinkSpecTest((C.IM3Runtime)(r.Ptr()).modules)
+	if result != nil {
+		return nil, errors.New("LinkSpecTest failed")
+	}
+	m := NewModule((ModuleT)(module))
+	return m, nil
 }
 
 // FindFunction calls m3_FindFunction and returns a call function
-func(r *Runtime) FindFunction(funcName string) (Function, error) {
+func(r *Runtime) FindFunction(funcName string) (FunctionWrapper, error) {
 	result := C.m3Err_none
 	var f C.IM3Function
 	cFuncName := C.CString(funcName)
@@ -81,7 +92,8 @@ func(r *Runtime) FindFunction(funcName string) (Function, error) {
 	if result != nil {
 		return nil, errFuncLookupFailed
 	}
-	fnWrapper := func(args... string) {	
+	var fnWrapper FunctionWrapper
+	fnWrapper = func(args... string) {	
 		length := len(args)
 		cArgs := make([]*C.char, length)
 		for i, v := range args {
@@ -112,8 +124,80 @@ func NewRuntime(env *Environment, stackSize uint) *Runtime {
 	}
 }
 
+// Module wraps a WASM3 module.
+type Module struct {
+	ptr ModuleT
+	numFunctions int
+}
+
+// Ptr returns a pointer to IM3Module
+func(m *Module) Ptr() C.IM3Module {
+	return (C.IM3Module)(m.ptr)
+}
+
+// GetFunction provides access to IM3Function->functions
+func(m *Module) GetFunction(index uint) (*Function, error) {
+	if uint(m.NumFunctions()) <= index {
+		return nil, errFuncLookupFailed
+	}
+	ptr := C.module_get_function(m.Ptr(), C.int(index))
+	name := C.GoString(ptr.name)
+	return &Function{
+		ptr: (FunctionT)(ptr),
+		Name: name,
+	}, nil
+}
+
+// GetFunctionByName is a helper to lookup functions by name
+// TODO: could be optimized by caching function names and pointer on the Go side, right after the load call.
+func(m *Module) GetFunctionByName(lookupName string) (*Function, error) {
+	var fn *Function
+	for i :=0 ; i < m.NumFunctions(); i++ {
+		ptr := C.module_get_function(m.Ptr(), C.int(i))
+		name := C.GoString(ptr.name)
+		if name != lookupName {
+			continue	
+		}
+		fn = &Function{
+			ptr: (FunctionT)(ptr),
+			Name: name,
+		}
+		return fn, nil
+	}
+	return nil, errFuncLookupFailed
+}
+
+// NumFunctions provides access to numFunctions.
+func(m *Module) NumFunctions() int {
+	if m.numFunctions == -1 {
+		return int(m.Ptr().numFunctions)
+	}
+	return m.numFunctions
+}
+
+// NewModule wraps a WASM3 moduke
+func NewModule(ptr ModuleT) *Module {
+	return &Module{
+		ptr: ptr,
+		numFunctions: -1,
+	}
+}
+
 // Function is a function wrapper
-type Function func(args ...string)
+type Function struct {
+	ptr FunctionT
+	// fnWrapper FunctionWrapper
+	Name string
+}
+
+// FunctionWrapper is used to wrap WASM3 call methods and make the calls more idiomatic
+// TODO: this is very limited, we need to handle input and output types appropriately
+type FunctionWrapper func(args ...string)
+
+// Ptr returns a pointer to IM3Function
+func(f *Function) Ptr() C.IM3Function {
+	return (C.IM3Function)(f.ptr)
+}
 
 // Environment wraps a WASM3 environment
 type Environment struct {
