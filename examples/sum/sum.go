@@ -27,18 +27,28 @@ func main() {
 	}
 	log.Printf("Read WASM module (%d bytes)\n", len(wasmBytes))
 
-	_, err = runtime.Load(wasmBytes)
+	module, err := env.ParseModule(wasmBytes)
 	if err != nil {
 		panic(err)
 	}
-	log.Print("Module loaded")
+	module, err = runtime.LoadModule(module)
+	if err != nil {
+		panic(err)
+	}
+	log.Print("Loaded module")
 
 	fn, err := runtime.FindFunction(fnName)
 	if err != nil {
 		panic(err)
 	}
-
-	log.Println("Calling function")
+	log.Printf("Found '%s' function (using runtime.FindFunction)", fnName)
 	fn("1", "2")
-	fn("2", "2")
+
+	// Different call approach, retrieving functions from the module object:
+	fn2, err := module.GetFunctionByName("sum")
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Found '%s' function (using module.GetFunctionByName)", fnName)
+	fn2.Call("2", "2")
 }
