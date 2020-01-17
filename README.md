@@ -37,6 +37,72 @@ Result: 3
 Result: 4
 ```
 
+## Memory access
+
+Take the following sample program:
+
+```c
+#include <stdlib.h>
+#include <string.h>
+
+char* somecall() {
+    // Allocate a few bytes on the heap:
+    char* test = (char*) malloc(12*sizeof(char));
+
+    // Copy a string into the previously defined address:
+    strcpy(test, "testingonly");
+
+    // Return the pointer:
+    return test;
+}
+```
+
+Build it using `wasicc`, this will generate a `cstring.wasm` file (WASM module):
+
+```
+wasicc cstring.c -Wl,--export-all -o cstring.wasm
+```
+
+The following Go code will load the WASM module and retrieve the data after calling `somecall`:
+
+```go
+    // Initialize the runtime and load the module:
+    env := wasm3.NewEnvironment()
+	defer env.Destroy()
+	runtime := wasm3.NewRuntime(env, 64*1024)
+	defer runtime.Destroy()
+    wasmBytes, err := ioutil.ReadFile("program.wasm")
+	module, _ := env.ParseModule(wasmBytes)
+	runtime.LoadModule(module)
+    fn, _ := runtime.FindFunction(fnName)
+
+    // Call somecall and get the pointer to our data:
+    result := fn()
+    
+    // Reconstruct the string from memory:
+    memoryLength = runtime.GetAllocatedMemoryLength()
+    mem := runtime.GetMemory(memoryLength, 0)
+    
+    // Initialize a Go buffer:
+	buf := new(bytes.Buffer)
+	for n := 0; n < memoryLength; n++ {
+		if n < result {
+			continue
+		}
+		value := mem[n]
+		if value == 0 {
+			break
+        }
+		buf.WriteByte(value)
+    }
+
+    // Print the string: "testingonly"
+    str := buf.String()
+    fmt.Println(str)
+```
+
+For more details check [this](https://github.com/matiasinsaurralde/go-wasm3/tree/master/examples/cstring).
+
 ## Limitations and future
 
-This is a WIP, the sample that was described shows only a very basic flow. It's not yet possible to access the instance memory or play around module imports/exports but I'm working on it. Stay tuned!
+This is a WIP. Stay tuned!
