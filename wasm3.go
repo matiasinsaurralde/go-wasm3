@@ -34,6 +34,14 @@ int call(IM3Function i_function, uint32_t i_argc, int i_argv[]) {
 	};
 	return result;
 }
+
+const uint8_t* get_memory(IM3Runtime i_runtime, uint32_t o_memorySizeInBytes, uint32_t i_memoryIndex) {
+	return m3_GetMemory(i_runtime, &o_memorySizeInBytes, i_memoryIndex);
+}
+
+int get_allocated_memory_length(IM3Runtime i_runtime) {
+	return i_runtime->memory.mallocated->length;
+}
 */
 import "C"
 
@@ -145,6 +153,23 @@ func(r *Runtime) Destroy() {
     C.m3_FreeRuntime(r.Ptr());
 }
 
+// GetMemory returns the runtime memory
+func(r *Runtime) GetMemory(sz, index int) []byte {
+	mem := C.get_memory(
+		r.Ptr(),
+		C.uint(sz),
+		C.uint(index),
+	)
+	goMem := C.GoBytes(unsafe.Pointer(mem), C.int(sz))
+	return goMem
+}
+
+// GetAllocatedMemoryLength returns the amount of allocated runtime memory
+func(r *Runtime) GetAllocatedMemoryLength() int {
+	length := C.get_allocated_memory_length(r.Ptr())
+	return int(length)
+}
+
 // NewRuntime initializes a new runtime
 // TODO: nativeStackInfo is passed as NULL
 func NewRuntime(env *Environment, stackSize uint) *Runtime {
@@ -250,13 +275,17 @@ func(f *Function) CallWithArgs(args... string) {
 // TODO: support diferent types
 func(f *Function) Call(args... interface{}) int {
 	length := len(args)
+	if length == 0 {
+		result := C.call(f.Ptr(), 0, nil)
+		return int(result)
+	}
 	cArgs := make([]C.int, length)
 	for i, v := range args {
 		val := v.(int)
 		n := C.int(val)
 		cArgs[i] = n
 	}
-	result := C.call(f.Ptr(), C.uint(length), &cArgs[0])
+	result := C.call(f.Ptr(), 0, nil)
 	return int(result)
 }
 
