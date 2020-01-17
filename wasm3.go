@@ -13,6 +13,27 @@ IM3Function module_get_function(IM3Module i_module, int index) {
 	IM3Function f = & i_module->functions [index];
 	return f;
 }
+
+int call(IM3Function i_function, uint32_t i_argc, int i_argv[]) {
+	IM3Module module = i_function->module;
+	IM3Runtime runtime = module->runtime;
+	m3stack_t stack = (m3stack_t)(runtime->stack);
+	IM3FuncType ftype = i_function->funcType;
+	for (int i = 0; i < ftype->numArgs; i++) {
+		int v = i_argv[i];
+		m3stack_t s = &stack[i];
+		*(u32*)(s) = v;
+	}
+	m3StackCheckInit();
+	Call(i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+	int result = -1;
+	switch (ftype->returnType) {
+		case c_m3Type_i32:
+			result = *(u32*)(stack);
+			break;
+	};
+	return result;
+}
 */
 import "C"
 
@@ -111,17 +132,12 @@ func(r *Runtime) FindFunction(funcName string) (FunctionWrapper, error) {
 	if result != nil {
 		return nil, errFuncLookupFailed
 	}
-	var fnWrapper FunctionWrapper
-	fnWrapper = func(args... string) {	
-		length := len(args)
-		cArgs := make([]*C.char, length)
-		for i, v := range args {
-			cVal := C.CString(v)
-			cArgs[i] = cVal
-		}
-		C.m3_CallWithArgs(f, C.uint(length), &cArgs[0])
+	fn := &Function{
+		ptr: (FunctionT)(f),
 	}
-	return fnWrapper, nil
+	// var fnWrapper FunctionWrapper
+	// fnWrapper = fn.Call
+	return FunctionWrapper(fn.Call), nil
 }
 
 // Destroy free calls m3_FreeRuntime
@@ -212,15 +228,15 @@ type Function struct {
 
 // FunctionWrapper is used to wrap WASM3 call methods and make the calls more idiomatic
 // TODO: this is very limited, we need to handle input and output types appropriately
-type FunctionWrapper func(args ...string)
+type FunctionWrapper func(args ...interface{}) int
 
 // Ptr returns a pointer to IM3Function
 func(f *Function) Ptr() C.IM3Function {
 	return (C.IM3Function)(f.ptr)
 }
 
-// Call wraps m3_CallWithArgs
-func(f *Function) Call(args... string) {
+// CallWithArgs wraps m3_CallWithArgs
+func(f *Function) CallWithArgs(args... string) {
 	length := len(args)
 	cArgs := make([]*C.char, length)
 	for i, v := range args {
@@ -228,6 +244,20 @@ func(f *Function) Call(args... string) {
 		cArgs[i] = cVal
 	}
 	C.m3_CallWithArgs(f.Ptr(), C.uint(length), &cArgs[0])
+}
+
+// Call implements a better call function
+// TODO: support diferent types
+func(f *Function) Call(args... interface{}) int {
+	length := len(args)
+	cArgs := make([]C.int, length)
+	for i, v := range args {
+		val := v.(int)
+		n := C.int(val)
+		cArgs[i] = n
+	}
+	result := C.call(f.Ptr(), C.uint(length), &cArgs[0])
+	return int(result)
 }
 
 // Environment wraps a WASM3 environment
