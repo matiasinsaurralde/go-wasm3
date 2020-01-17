@@ -285,7 +285,7 @@ func(f *Function) Call(args... interface{}) int {
 		n := C.int(val)
 		cArgs[i] = n
 	}
-	result := C.call(f.Ptr(), 0, nil)
+	result := C.call(f.Ptr(), C.uint(length), &cArgs[0])
 	return int(result)
 }
 
