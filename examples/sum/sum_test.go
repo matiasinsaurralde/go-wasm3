@@ -32,7 +32,10 @@ func TestSum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fn("1", "2")
+	result := fn(1, 1)
+	if result != 2 {
+		t.Fatal("Result doesn't match")
+	}
 }
 
 func BenchmarkSum(b *testing.B) {
@@ -49,7 +52,7 @@ func BenchmarkSum(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		fn("1", "2")
+		fn(1, 2)
 	}
 }
 
@@ -67,6 +70,6 @@ func BenchmarkSumReentrant(b *testing.B) {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		fn("1", "2")
+		fn(1, 2)
 	}
 }

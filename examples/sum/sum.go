@@ -42,7 +42,8 @@ func main() {
 		panic(err)
 	}
 	log.Printf("Found '%s' function (using runtime.FindFunction)", fnName)
-	fn("1", "2")
+	result := fn(1, 1)
+	log.Print("Result is: ", result)
 
 	// Different call approach, retrieving functions from the module object:
 	fn2, err := module.GetFunctionByName("sum")
@@ -50,5 +51,6 @@ func main() {
 		panic(err)
 	}
 	log.Printf("Found '%s' function (using module.GetFunctionByName)", fnName)
-	fn2.Call("2", "2")
+	result = fn2.Call(2, 2)
+	log.Print("Result is: ", result)
 }
