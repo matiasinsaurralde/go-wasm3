@@ -1,2 +1,2 @@
 #!/bin/sh
-wasicc cstring.c -Wl,--export-all -o cstring.wasm
+wasicc cstring.c -Wl,--export-all,--allow-undefined -o cstring.wasm
