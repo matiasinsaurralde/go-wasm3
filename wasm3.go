@@ -143,6 +143,9 @@ func(r *Runtime) LoadModule(module *Module) (*Module, error) {
 	if result != nil {
 		return nil, errors.New("LinkSpecTest failed")
 	}
+	if r.cfg.EnableWASI {
+		C.m3_LinkWASI(r.Ptr().modules)
+	}
 	return module, nil
 }
 
