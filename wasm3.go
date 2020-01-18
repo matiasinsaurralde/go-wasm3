@@ -6,7 +6,9 @@ package wasm3
 #cgo linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
 #include "m3.h"
 #include "m3_api_libc.h"
+#include "m3_api_wasi.h"
 #include "m3_env.h"
+#include "go-wasm3.h"
 
 // module_get_function is a helper function for the module Go struct
 IM3Function module_get_function(IM3Module i_module, int index) {
@@ -15,6 +17,7 @@ IM3Function module_get_function(IM3Module i_module, int index) {
 }
 
 int call(IM3Function i_function, uint32_t i_argc, int i_argv[]) {
+	int result = 0;
 	IM3Module module = i_function->module;
 	IM3Runtime runtime = module->runtime;
 	m3stack_t stack = (m3stack_t)(runtime->stack);
@@ -25,22 +28,28 @@ int call(IM3Function i_function, uint32_t i_argc, int i_argv[]) {
 		*(u32*)(s) = v;
 	}
 	m3StackCheckInit();
-	Call(i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
-	int result = -1;
+	M3Result call_result = Call(i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+	if(call_result != NULL) {
+		set_error(call_result);
+		return -1;
+	}
 	switch (ftype->returnType) {
 		case c_m3Type_i32:
 			result = *(u32*)(stack);
 			break;
+		case c_m3Type_i64:
+		default:
+			result =  *(u32*)(stack);
 	};
 	return result;
 }
 
-const uint8_t* get_memory(IM3Runtime i_runtime, uint32_t o_memorySizeInBytes, uint32_t i_memoryIndex) {
-	return m3_GetMemory(i_runtime, &o_memorySizeInBytes, i_memoryIndex);
-}
-
 int get_allocated_memory_length(IM3Runtime i_runtime) {
 	return i_runtime->memory.mallocated->length;
+}
+
+u8* get_allocated_memory(IM3Runtime i_runtime) {
+	return m3MemData(i_runtime->memory.mallocated);
 }
 */
 import "C"
@@ -48,6 +57,7 @@ import "C"
 import(
 	"unsafe"
 	"errors"
+	"reflect"
 )
 
 // RuntimeT is an alias for IM3Runtime
@@ -67,10 +77,17 @@ var(
 	errFuncLookupFailed = errors.New("Function lookup failed")
 )
 
+// Config holds the runtime and environment configuration
+type Config struct {
+	Environment *Environment
+	StackSize uint
+	EnableWASI bool
+}
+
 // Runtime wraps a WASM3 runtime
 type Runtime struct {
 	ptr RuntimeT
-	Environment *Environment
+	cfg *Config
 }
 
 // Ptr returns a IM3Runtime pointer
@@ -86,7 +103,7 @@ func(r *Runtime) Load(wasmBytes []byte) (*Module, error) {
 	length := len(wasmBytes)
 	var module C.IM3Module
 	result = C.m3_ParseModule(
-		r.Environment.Ptr(),
+		r.cfg.Environment.Ptr(),
 		&module,
 		(*C.uchar)(bytes),
 		C.uint(length),
@@ -104,6 +121,9 @@ func(r *Runtime) Load(wasmBytes []byte) (*Module, error) {
 	result = C.m3_LinkSpecTest(r.Ptr().modules)
 	if result != nil {
 		return nil, errors.New("LinkSpecTest failed")
+	}
+	if r.cfg.EnableWASI {
+		C.m3_LinkWASI(r.Ptr().modules)
 	}
 	m := NewModule((ModuleT)(module))
 	return m, nil
@@ -153,15 +173,20 @@ func(r *Runtime) Destroy() {
     C.m3_FreeRuntime(r.Ptr());
 }
 
-// GetMemory returns the runtime memory
-func(r *Runtime) GetMemory(sz, index int) []byte {
-	mem := C.get_memory(
+// Memory allows access to runtime Memory.
+// Taken from Wasmer extension: https://github.com/wasmerio/go-ext-wasm
+func(r *Runtime) Memory() []byte {
+	mem := C.get_allocated_memory(
 		r.Ptr(),
-		C.uint(sz),
-		C.uint(index),
 	)
-	goMem := C.GoBytes(unsafe.Pointer(mem), C.int(sz))
-	return goMem
+	var data = (*uint8)(mem)
+	length := r.GetAllocatedMemoryLength()
+	var header reflect.SliceHeader
+	header = *(*reflect.SliceHeader)(unsafe.Pointer(&header))
+	header.Data = uintptr(unsafe.Pointer(data))
+	header.Len = int(length)
+	header.Cap = int(length)
+	return *(*[]byte)(unsafe.Pointer(&header))
 }
 
 // GetAllocatedMemoryLength returns the amount of allocated runtime memory
@@ -172,15 +197,16 @@ func(r *Runtime) GetAllocatedMemoryLength() int {
 
 // NewRuntime initializes a new runtime
 // TODO: nativeStackInfo is passed as NULL
-func NewRuntime(env *Environment, stackSize uint) *Runtime {
+func NewRuntime(cfg *Config) *Runtime {
+	// env *Environment, stackSize uint
 	ptr := C.m3_NewRuntime(
-		env.Ptr(),
-		C.uint(stackSize),
+		cfg.Environment.Ptr(),
+		C.uint(cfg.StackSize),
 		nil,
 	)
 	return &Runtime{
 		ptr: (RuntimeT)(ptr),
-		Environment: env,
+		cfg: cfg,
 	}
 }
 
@@ -253,7 +279,7 @@ type Function struct {
 
 // FunctionWrapper is used to wrap WASM3 call methods and make the calls more idiomatic
 // TODO: this is very limited, we need to handle input and output types appropriately
-type FunctionWrapper func(args ...interface{}) int
+type FunctionWrapper func(args ...interface{}) (int, error)
 
 // Ptr returns a pointer to IM3Function
 func(f *Function) Ptr() C.IM3Function {
@@ -273,11 +299,14 @@ func(f *Function) CallWithArgs(args... string) {
 
 // Call implements a better call function
 // TODO: support diferent types
-func(f *Function) Call(args... interface{}) int {
+func(f *Function) Call(args... interface{}) (int, error) {
 	length := len(args)
 	if length == 0 {
 		result := C.call(f.Ptr(), 0, nil)
-		return int(result)
+		if result == -1 {
+			return int(result), errors.New(LastErrorString())
+		}
+		return int(result), nil
 	}
 	cArgs := make([]C.int, length)
 	for i, v := range args {
@@ -286,7 +315,10 @@ func(f *Function) Call(args... interface{}) int {
 		cArgs[i] = n
 	}
 	result := C.call(f.Ptr(), C.uint(length), &cArgs[0])
-	return int(result)
+	if result == -1 {
+		return int(result), errors.New(LastErrorString())
+	}
+	return int(result), nil
 }
 
 // Environment wraps a WASM3 environment
