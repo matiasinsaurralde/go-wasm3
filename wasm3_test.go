@@ -21,9 +21,10 @@ func init() {
 	}
 }
 func TestEnvRuntimeCycle(t *testing.T) {
-	env := NewEnvironment()
-	defer env.Destroy()
-	runtime := NewRuntime(env, 64*1024)
+	runtime := NewRuntime(&Config{
+		Environment: NewEnvironment(),
+		StackSize:   64 * 1024,
+	})
 	defer runtime.Destroy()
 }
 
@@ -43,9 +44,12 @@ func TestParseModule(t *testing.T) {
 }
 
 func TestLoadModule(t *testing.T) {
-	env := NewEnvironment()
-	module, _ := env.ParseModule(sumModuleBytes)
-	runtime := NewRuntime(env, 64*1024)
+	runtime := NewRuntime(&Config{
+		Environment: NewEnvironment(),
+		StackSize:   64 * 1024,
+	})
+	defer runtime.Destroy()
+	module, _ := runtime.ParseModule(sumModuleBytes)
 	_, err := runtime.LoadModule(module)
 	if err != nil {
 		t.Fatal("Couldn't load sample module")

@@ -20,9 +20,10 @@ func init() {
 }
 
 func TestSum(t *testing.T) {
-	env := wasm3.NewEnvironment()
-	defer env.Destroy()
-	runtime := wasm3.NewRuntime(env, 64*1024)
+	runtime := wasm3.NewRuntime(&wasm3.Config{
+		Environment: wasm3.NewEnvironment(),
+		StackSize:   64 * 1024,
+	})
 	defer runtime.Destroy()
 	_, err := runtime.Load(wasmBytes)
 	if err != nil {
@@ -32,7 +33,7 @@ func TestSum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result := fn(1, 1)
+	result, _ := fn(1, 1)
 	if result != 2 {
 		t.Fatal("Result doesn't match")
 	}
@@ -40,9 +41,10 @@ func TestSum(t *testing.T) {
 
 func BenchmarkSum(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		env := wasm3.NewEnvironment()
-		defer env.Destroy()
-		runtime := wasm3.NewRuntime(env, 64*1024)
+		runtime := wasm3.NewRuntime(&wasm3.Config{
+			Environment: wasm3.NewEnvironment(),
+			StackSize:   64 * 1024,
+		})
 		defer runtime.Destroy()
 		_, err := runtime.Load(wasmBytes)
 		if err != nil {
@@ -57,9 +59,10 @@ func BenchmarkSum(b *testing.B) {
 }
 
 func BenchmarkSumReentrant(b *testing.B) {
-	env := wasm3.NewEnvironment()
-	defer env.Destroy()
-	runtime := wasm3.NewRuntime(env, 64*1024)
+	runtime := wasm3.NewRuntime(&wasm3.Config{
+		Environment: wasm3.NewEnvironment(),
+		StackSize:   64 * 1024,
+	})
 	defer runtime.Destroy()
 	_, err := runtime.Load(wasmBytes)
 	if err != nil {

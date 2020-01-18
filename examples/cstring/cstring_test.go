@@ -21,9 +21,10 @@ func init() {
 }
 
 func TestCString(t *testing.T) {
-	env := wasm3.NewEnvironment()
-	defer env.Destroy()
-	runtime := wasm3.NewRuntime(env, 64*1024)
+	runtime := wasm3.NewRuntime(&wasm3.Config{
+		Environment: wasm3.NewEnvironment(),
+		StackSize:   64 * 1024,
+	})
 	defer runtime.Destroy()
 	_, err := runtime.Load(wasmBytes)
 	if err != nil {
@@ -33,11 +34,11 @@ func TestCString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result := fn()
+	result, _ := fn()
 	memoryLength := runtime.GetAllocatedMemoryLength()
 
 	// Reconstruct the string from memory:
-	mem := runtime.GetMemory(memoryLength, 0)
+	mem := runtime.Memory()
 	buf := new(bytes.Buffer)
 	for n := 0; n < memoryLength; n++ {
 		if n < result {
@@ -56,9 +57,10 @@ func TestCString(t *testing.T) {
 
 func BenchmarkCString(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		env := wasm3.NewEnvironment()
-		defer env.Destroy()
-		runtime := wasm3.NewRuntime(env, 64*1024)
+		runtime := wasm3.NewRuntime(&wasm3.Config{
+			Environment: wasm3.NewEnvironment(),
+			StackSize:   64 * 1024,
+		})
 		defer runtime.Destroy()
 		_, err := runtime.Load(wasmBytes)
 		if err != nil {
@@ -68,11 +70,11 @@ func BenchmarkCString(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		result := fn()
+		result, _ := fn()
 		memoryLength := runtime.GetAllocatedMemoryLength()
 
 		// Reconstruct the string from memory:
-		mem := runtime.GetMemory(memoryLength, 0)
+		mem := runtime.Memory()
 		buf := new(bytes.Buffer)
 		for n := 0; n < memoryLength; n++ {
 			if n < result {
@@ -91,9 +93,10 @@ func BenchmarkCString(b *testing.B) {
 }
 
 func BenchmarkCStringReentrant(b *testing.B) {
-	env := wasm3.NewEnvironment()
-	defer env.Destroy()
-	runtime := wasm3.NewRuntime(env, 64*1024)
+	runtime := wasm3.NewRuntime(&wasm3.Config{
+		Environment: wasm3.NewEnvironment(),
+		StackSize:   64 * 1024,
+	})
 	defer runtime.Destroy()
 	_, err := runtime.Load(wasmBytes)
 	if err != nil {
@@ -104,11 +107,11 @@ func BenchmarkCStringReentrant(b *testing.B) {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		result := fn()
+		result, _ := fn()
 		memoryLength := runtime.GetAllocatedMemoryLength()
 
 		// Reconstruct the string from memory:
-		mem := runtime.GetMemory(memoryLength, 0)
+		mem := runtime.Memory()
 		buf := new(bytes.Buffer)
 		for n := 0; n < memoryLength; n++ {
 			if n < result {

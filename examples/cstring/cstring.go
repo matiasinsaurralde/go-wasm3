@@ -15,10 +15,10 @@ const (
 
 func main() {
 	log.Print("Initializing WASM3")
-
-	env := wasm3.NewEnvironment()
-	defer env.Destroy()
-	runtime := wasm3.NewRuntime(env, 64*1024)
+	runtime := wasm3.NewRuntime(&wasm3.Config{
+		Environment: wasm3.NewEnvironment(),
+		StackSize:   64 * 1024,
+	})
 	defer runtime.Destroy()
 	log.Println("Runtime ok")
 
@@ -28,7 +28,7 @@ func main() {
 	}
 	log.Printf("Read WASM module (%d bytes)\n", len(wasmBytes))
 
-	module, err := env.ParseModule(wasmBytes)
+	module, err := runtime.ParseModule(wasmBytes)
 	if err != nil {
 		panic(err)
 	}
@@ -44,12 +44,12 @@ func main() {
 	log.Printf("Found '%s' function (using runtime.FindFunction)", fnName)
 	memoryLength := runtime.GetAllocatedMemoryLength()
 	log.Printf("Allocated memory (before function call) is: %d\n", memoryLength)
-	result := fn()
+	result, _ := fn()
 	memoryLength = runtime.GetAllocatedMemoryLength()
 	log.Printf("Allocated memory (after function call) is: %d\n", memoryLength)
 
 	// Reconstruct the string from memory:
-	mem := runtime.GetMemory(memoryLength, 0)
+	mem := runtime.Memory()
 	buf := new(bytes.Buffer)
 	for n := 0; n < memoryLength; n++ {
 		if n < result {

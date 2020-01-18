@@ -170,7 +170,8 @@ func(r *Runtime) FindFunction(funcName string) (FunctionWrapper, error) {
 
 // Destroy free calls m3_FreeRuntime
 func(r *Runtime) Destroy() {
-    C.m3_FreeRuntime(r.Ptr());
+	C.m3_FreeRuntime(r.Ptr());
+	r.cfg.Environment.Destroy()
 }
 
 // Memory allows access to runtime Memory.
@@ -193,6 +194,11 @@ func(r *Runtime) Memory() []byte {
 func(r *Runtime) GetAllocatedMemoryLength() int {
 	length := C.get_allocated_memory_length(r.Ptr())
 	return int(length)
+}
+
+// ParseModule is a helper that calls the same function in env.
+func(r *Runtime) ParseModule(wasmBytes []byte) (*Module, error) {
+	return r.cfg.Environment.ParseModule(wasmBytes)
 }
 
 // NewRuntime initializes a new runtime
