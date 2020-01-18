@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- describing schema for sample xml -->
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema" processContents="lax">
+
+    <xs:element name="items"> <!-- root element will be <items> -->
+        <xs:complexType> <!-- it will be complex (there are complex and simple) -->
+            <xs:sequence> <!-- it will consists from sequence of other elements -->
+                <xs:element name="item" minOccurs="0" maxOccurs="unbounded"> <!-- there will be zero or more <item> elements in sequence -->
+                    <xs:complexType> <!-- they all have complex type -->
+                        <xs:sequence> <!-- each of them will have next sequence of elements -->
+                            <xs:element name="name" type="NonEmptyString" minOccurs="1"/> <!-- required (minOccurs="1") non empty (look for NonEmptyString at bottom) name field -->
+                            <xs:element name="photo" minOccurs="1"> <!-- required photo with given pattern to validate urls for images -->
+                                <xs:simpleType> <!-- this is example how to use additional restrictions for elements -->
+                                    <xs:restriction base="xs:anyURI">
+                                        <xs:minLength value="1" />
+                                        <xs:pattern value="http://.*(png|jpg|jpeg|gif)" />
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:element>
+                            <xs:element name="tags" type="NonEmptyString" minOccurs="1"/>
+                            <xs:element name="diameter" type="xs:positiveInteger" minOccurs="1"/>
+                            <xs:element name="weight" type="xs:positiveInteger" minOccurs="1"/>
+                            <xs:element name="price" type="positiveDecimal" minOccurs="1"/>
+                            <xs:element name="size" minOccurs="0" default=""> <!-- example of enum field -->
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:enumeration value=""/>
+                                        <xs:enumeration value="Big"/>
+                                        <xs:enumeration value="Small"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:simpleType name="positiveDecimal">
+        <xs:restriction base="xs:decimal">
+            <xs:minExclusive value="0"/>
+            <xs:fractionDigits value="2"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="NonEmptyString"> <!-- we can describe our types separately to reuse them later -->
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
+            <xs:pattern value=".*[^\s].*" />
+        </xs:restriction>
+    </xs:simpleType>
+</xs:schema>

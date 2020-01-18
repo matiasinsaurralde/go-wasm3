@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<items>
+    <item>
+        <name>Item 1</name>
+        <photo>http://example.com/photo1.png</photo>
+        <tags>Tag1, Tag2</tags>
+        <diameter>32</diameter>
+        <weight>540</weight>
+        <price>60</price>
+        <size>Big</size>
+    </item>
+    <item>
+        <!-- This element will trigger an error, ending tag mismatch -->
+        <name>Item 2</zzz>
+        <aaa><bbb>
+        <photo>http://example.com/photo2.png</photo>
+        <tags>Tag1</tags>
+        <diameter>23</diameter>
+        <weight>340</weight>
+        <price>50</price>
+    </item>
+</items>
