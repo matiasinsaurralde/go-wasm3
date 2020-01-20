@@ -37,6 +37,23 @@ Result: 3
 Result: 4
 ```
 
+## Sample projects
+
+A few more samples:
+
+### boa
+
+This program uses the [boa](https://github.com/jasonwilliams/boa) engine to evaluate JS code. Boa is an embeddable JS engine written in Rust, for this sample it was compiled targeting WASM.
+
+Link [here](https://github.com/matiasinsaurralde/go-wasm3/tree/master/examples/boa).
+
+### libxml
+
+This program loads [libxml2](https://github.com/GNOME/libxml2) as a WASM module (it's a custom build, full instructions [here](https://github.com/matiasinsaurralde/wasm-libxml2)). The library is used to validate a XML file against a XSD (both loaded from the Go side).
+
+Link [here](https://github.com/matiasinsaurralde/go-wasm3/tree/master/examples/libxml).
+
+
 ## Memory access
 
 Take the following sample program:
