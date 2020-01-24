@@ -123,3 +123,9 @@ For more details check [this](https://github.com/matiasinsaurralde/go-wasm3/tree
 ## Limitations and future
 
 This is a WIP. Stay tuned!
+
+## License
+
+[MIT](https://github.com/matiasinsaurralde/go-wasm3/blob/master/LICENSE).
+
+[wasm3](https://github.com/wasm3/wasm3/blob/master/LICENSE) is also under this license.
