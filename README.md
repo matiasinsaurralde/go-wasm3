@@ -1,7 +1,8 @@
 go-wasm3
 ==
 
-[![CircleCI](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master.svg?style=svg)](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master)
+[![GoDoc](https://godoc.org/github.com/matiasinsaurralde/go-wasm3?status.svg)](https://godoc.org/github.com/matiasinsaurralde/go-wasm3)
+[![Build status](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master.svg?style=shield)](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master)
 
 Golang wrapper for [WASM3](https://github.com/wasm3/wasm3), WIP.
 
