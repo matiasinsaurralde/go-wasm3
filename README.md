@@ -9,9 +9,9 @@ This is part of a series of WASM-related experiments: [go-wavm](https://github.c
 
 ## Install/build
 
-For now I've attached two static builds of [WASM3](https://github.com/wasm3/wasm3) for OS X and Linux (64 bits). If you want to hack around the library, you will need [this CMake tweak](https://github.com/matiasinsaurralde/wasm3/commit/824cb245617ad9888e1b36c47c164d5c687cd272).
+This package ships with pre-built [`WASM3`](https://github.com/wasm3/wasm3) libraries (static builds) for OS X and Linux. If you want to hack around it, check [the original repository](https://github.com/wasm3/wasm3).
 
-If you don't want to build [WASM3](https://github.com/wasm3/wasm3) and one of the mentioned platforms is in use, `go get` should be enough:
+If you're using one of the mentioned platforms, you may install the package using `go get`:
 
 ```
 $ go get -u github.com/matiasinsaurralde/go-wasm3
@@ -37,9 +37,9 @@ Result: 3
 Result: 4
 ```
 
-## Sample projects
+You will find additional sample projects in the next section.
 
-A few more samples:
+## Sample projects
 
 ### boa
 
@@ -123,6 +123,10 @@ For more details check [this](https://github.com/matiasinsaurralde/go-wasm3/tree
 ## Limitations and future
 
 This is a WIP. Stay tuned!
+
+## Related projects
+
+A Rust wrapper is available [here](https://github.com/Veykril/wasm3-rs).
 
 ## License
 
