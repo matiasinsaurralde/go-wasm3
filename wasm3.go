@@ -1,9 +1,11 @@
 package wasm3
 
 /*
-#cgo CFLAGS: -Iinclude
+#cgo darwin CFLAGS: -Iinclude
 #cgo darwin LDFLAGS: -L${SRCDIR}/lib/darwin -lm3
+#cgo linux CFLAGS: -Iinclude
 #cgo linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
+
 #include "m3.h"
 #include "m3_api_libc.h"
 #include "m3_api_wasi.h"
