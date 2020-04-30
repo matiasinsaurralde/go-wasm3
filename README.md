@@ -102,16 +102,16 @@ The following Go code will load the WASM module and retrieve the data after call
     mem := runtime.GetMemory(memoryLength, 0)
     
     // Initialize a Go buffer:
-	buf := new(bytes.Buffer)
-	for n := 0; n < memoryLength; n++ {
-		if n < result {
-			continue
-		}
-		value := mem[n]
-		if value == 0 {
-			break
+    buf := new(bytes.Buffer)
+    for n := 0; n < memoryLength; n++ {
+        if n < result {
+            continue
         }
-		buf.WriteByte(value)
+        value := mem[n]
+        if value == 0 {
+            break
+        }
+        buf.WriteByte(value)
     }
 
     // Print the string: "testingonly"
