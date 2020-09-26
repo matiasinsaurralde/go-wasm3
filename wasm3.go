@@ -6,7 +6,6 @@ package wasm3
 #cgo linux CFLAGS: -Iinclude
 #cgo linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
 
-#include "m3.h"
 #include "m3_api_libc.h"
 #include "m3_api_wasi.h"
 #include "m3_env.h"
@@ -22,15 +21,15 @@ int call(IM3Function i_function, uint32_t i_argc, int i_argv[]) {
 	int result = 0;
 	IM3Module module = i_function->module;
 	IM3Runtime runtime = module->runtime;
-	m3stack_t stack = (m3stack_t)(runtime->stack);
+	u64* stack = (u64*)(runtime->stack);
 	IM3FuncType ftype = i_function->funcType;
 	for (int i = 0; i < ftype->numArgs; i++) {
 		int v = i_argv[i];
-		m3stack_t s = &stack[i];
-		*(u32*)(s) = v;
+		u64* s = &stack[i];
+		*(u64*)(s) = v;
 	}
 	m3StackCheckInit();
-	M3Result call_result = Call(i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
+	M3Result call_result = Call(i_function->compiled, (m3stack_t)(stack), runtime->memory.mallocated, d_m3OpDefaultArgs);
 	if(call_result != NULL) {
 		set_error(call_result);
 		return -1;

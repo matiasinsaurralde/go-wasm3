@@ -14,12 +14,25 @@
 #include <string.h>
 #include <assert.h>
 
-#include "m3.h"
+#include "wasm3.h"
 #include "m3_config.h"
 
+# if defined(__cplusplus)
+#   define d_m3BeginExternC     extern "C" {
+#   define d_m3EndExternC       }
+# else
+#   define d_m3BeginExternC
+#   define d_m3EndExternC
+# endif
+
+d_m3BeginExternC
+
 #if !defined(d_m3ShortTypesDefined)
+#if d_m3HasFloat
 typedef double          f64;
 typedef float           f32;
+#endif
+
 typedef uint64_t        u64;
 typedef int64_t         i64;
 typedef uint32_t        u32;
@@ -37,8 +50,17 @@ typedef const char * const      ccstr_t;
 typedef const u8 *              bytes_t;
 typedef const u8 * const        cbytes_t;
 
+typedef u16                     m3opcode_t;
+
 typedef i64                     m3reg_t;
-typedef u64 *                   m3stack_t;
+
+# if d_m3Use32BitSlots
+typedef u32                     m3slot_t;
+# else
+typedef u64                     m3slot_t;
+# endif
+
+typedef m3slot_t *              m3stack_t;
 
 typedef
 const void * const  cvptr_t;
@@ -109,7 +131,7 @@ const void * const  cvptr_t;
 # endif
 
 
-# ifdef DEBUG
+# if (defined(DEBUG) || defined(ASSERTS)) && !defined(NASSERTS)
 #   define d_m3Assert(ASS)      assert (ASS)
 # else
 #   define d_m3Assert(ASS)
@@ -140,16 +162,15 @@ typedef struct M3CodePageHeader
 M3CodePageHeader;
 
 
-#define d_m3CodePageFreeLinesThreshold      4       // max is probably: select _sss
+#define d_m3CodePageFreeLinesThreshold      4+2       // max is: select _sss & CallIndirect + 2 for bridge
 
 #define d_m3MemPageSize                     65536
 
-#define d_m3Reg0SlotAlias                   d_m3MaxFunctionStackHeight + 1
-#define d_m3Fp0SlotAlias                    d_m3MaxFunctionStackHeight + 2
-
-#define d_m3MaxNumFunctionConstants         60
+#define d_m3Reg0SlotAlias                   30000
+#define d_m3Fp0SlotAlias                    30001
 
 #define d_m3MaxSaneUtf8Length               2000
+#define d_m3MaxSaneFunctionArgCount         1000    // still insane, but whatever
 
 #define d_externalKind_function             0
 #define d_externalKind_table                1
@@ -159,10 +180,6 @@ M3CodePageHeader;
 static const char * const c_waTypes []          = { "nil", "i32", "i64", "f32", "f64", "void", "void *" };
 static const char * const c_waCompactTypes []   = { "0", "i", "I", "f", "F", "v", "*" };
 
-
-#define m3Alloc(OPTR, STRUCT, NUM)              m3Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
-#define m3RellocArray(PTR, STRUCT, NEW, OLD)    m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
-#define m3Free(P)                               { m3Free_impl((void*)(P)); P = NULL; }
 
 # if d_m3VerboseLogs
 
@@ -191,13 +208,17 @@ size_t      m3StackGetMax           ();
 #endif
 
 void        m3Abort                 (const char* message);
-void        m3NotImplemented        (void);
 
-void        m3Yield                 (void);
+M3Result    m3_Malloc                (void ** o_ptr, size_t i_size);
+M3Result    m3_Realloc               (void ** io_ptr, size_t i_newSize, size_t i_oldSize);
+void        m3_Free                  (void ** io_ptr);
+M3Result    m3_CopyMem               (void ** o_to, const void * i_from, size_t i_size);
 
-M3Result    m3Malloc                (void ** o_ptr, size_t i_size);
-void *      m3Realloc               (void * i_ptr, size_t i_newSize, size_t i_oldSize);
-void        m3Free_impl             (void * o_ptr);
+#define m3Alloc(OPTR, STRUCT, NUM)                  m3_Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
+#define m3ReallocArray(PTR, STRUCT, NEW, OLD)       m3_Realloc ((void **) (PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
+#define m3Reallocate(_ptr, _newSize, _oldSize)      m3_Realloc ((void **) _ptr, _newSize, _oldSize)
+#define m3Free(P)                                   m3_Free ((void **)(& P));
+#define m3CopyMem(_to, _from, _size)                m3_CopyMem ((void **) _to, (void *) _from, _size)
 
 M3Result    NormalizeType           (u8 * o_type, i8 i_convolutedWasmType);
 
@@ -206,17 +227,19 @@ bool        IsFpType                (u8 i_wasmType);
 bool        Is64BitType             (u8 i_m3Type);
 u32         SizeOfType              (u8 i_m3Type);
 
-M3Result    Read_u64                (u64 * o_value, const u8 ** io_bytes, cbytes_t i_end);
-M3Result    Read_u32                (u32 * o_value, const u8 ** io_bytes, cbytes_t i_end);
+M3Result    Read_u64                (u64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+M3Result    Read_u32                (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+#if d_m3HasFloat
 M3Result    Read_f64                (f64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_f32                (f32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
-M3Result    Read_u8                 (u8 * o_value, const u8 ** io_bytes, cbytes_t i_end);
+#endif
+M3Result    Read_u8                 (u8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 
 M3Result    ReadLebUnsigned         (u64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLebSigned           (i64 * o_value, u32 i_maxNumBits, bytes_t * io_bytes, cbytes_t i_end);
-M3Result    ReadLEB_u32             (u32 * o_value, bytes_t* io_bytes, cbytes_t i_end);
-M3Result    ReadLEB_u7              (u8 * o_value, bytes_t * io_bytes, cbytes_t i_end);
-M3Result    ReadLEB_i7              (i8 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+M3Result    ReadLEB_u32             (u32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
+M3Result    ReadLEB_u7              (u8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
+M3Result    ReadLEB_i7              (i8  * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_i32             (i32 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    ReadLEB_i64             (i64 * o_value, bytes_t * io_bytes, cbytes_t i_end);
 M3Result    Read_utf8               (cstr_t * o_utf8, bytes_t * io_bytes, cbytes_t i_end);
@@ -224,5 +247,7 @@ M3Result    Read_utf8               (cstr_t * o_utf8, bytes_t * io_bytes, cbytes
 size_t      SPrintArg               (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type);
 
 void        ReportError             (IM3Runtime io_runtime, IM3Module i_module, IM3Function i_function, ccstr_t i_errorMessage, ccstr_t i_file, u32 i_lineNum);
+
+d_m3EndExternC
 
 #endif // m3_core_h
