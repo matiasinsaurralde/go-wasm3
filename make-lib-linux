@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
+
+LIBNAME=libm3.a
+
+compile_linux() {
+    platform=$1
+    arch=$2
+    clang=$3
+    target=$4
+    ar=$5
+    id=$platform-$arch
+    objdir=objects-$id
+    rm -rf "$objdir"
+    mkdir "$objdir"
+    (cd $objdir
+     for f in ../source/*.c; do
+         "$clang" -c "$f"  -target "$target" -Dd_m3HasWASI -fPIC
+     done)
+    mkdir -p "lib/$id"
+    "$ar" rcs "lib/$id/$LIBNAME" "$objdir"/*
+}
+
+for arg in $@; do
+    if [ "$arg" = linux -o "$arg" = linux-x86_64 ]; then
+        compile_linux linux x86_64 clang x86_64-pc-linux-gnu ar
+    elif [ "$arg" = android -o "$arg" = android-aarch64 ]; then
+        HOSTTAG=linux-x86_64
+        NDK=/usr/lib/android-sdk/ndk-bundle
+        NDKBIN=$NDK/toolchains/llvm/prebuilt/$HOSTTAG/bin
+        compile_linux android aarch64 "$NDKBIN/aarch64-linux-android21-clang" "aarch64-linux-android21" "$NDKBIN/aarch64-linux-android-ar"
+    elif  [ "$arg" = android -o "$arg" = android-x86_64 ]; then
+        HOSTTAG=linux-x86_64
+        NDK=/usr/lib/android-sdk/ndk-bundle
+        NDKBIN=$NDK/toolchains/llvm/prebuilt/$HOSTTAG/bin
+        compile_linux android x86_64 "$NDKBIN/x86_64-linux-android21-clang" "x86_64-linux-android21" "$NDKBIN/x86_64-linux-android-ar"
+    else
+        echo "unknown combo: $arg" 1>&2
+        exit 1
+    fi
+done

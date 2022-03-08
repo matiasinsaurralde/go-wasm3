@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euo pipefail
+
+LIBNAME=libm3.a
+
+compile() {
+  sdk=$1
+  arch=$2
+  clang=$3
+  ar=$4
+  sdkpath=$5
+  objdir="objects-$sdk-$arch"
+  rm -rf "$objdir"
+  mkdir "$objdir"
+  echo "$sdk-$arch"
+  (cd "$objdir"
+   for f in ../source/*.c; do
+     echo - $(basename "$f")
+     "$clang" -c "$f" \
+       -isysroot "$sdkpath" \
+       -arch $arch \
+       -Dd_m3HasWASI \
+       -fembed-bitcode-marker
+   done)
+  mkdir -p "lib/$sdk-$arch"
+  "$ar" rcs "lib/$sdk-$arch/$LIBNAME" "$objdir"/*
+}
+
+DEFAULT="iphoneos-arm64 iphonesimulator-arm64 iphonesimulator-x86_64 macosx-x86_64"
+
+if [ $# -eq 0 ]; then
+  echo "usage: $0 combo.., where combo is all or $DEFAULT" 1>&2
+  exit 1
+fi
+
+if [ $# -eq 1 -a $1 = all ]; then
+  args="$DEFAULT"
+else
+  args=$@
+fi
+echo $args
+
+for arg in $args; do
+  sdk=$(echo $arg|cut -d- -f1)
+  arch=$(echo $arg|cut -d- -f2)
+  compile $sdk $arch \
+   "$(xcrun --sdk $sdk --find clang)" \
+    $(xcrun --sdk $sdk --find ar) \
+    $(xcrun --sdk $sdk --show-sdk-path)
+done
