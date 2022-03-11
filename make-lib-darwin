@@ -1,78 +1,84 @@
 #!/bin/bash
 set -euo pipefail
 
+if [ $# -eq 0 ]; then
+  echo "usage: $0 <wasm3-dir>"
+  exit 1
+fi
+
+wasmdir=$1
+
 LIBNAME=libm3.a
 
-DEFAULT="iphoneos-arm64 iphonesimulator-arm64 iphonesimulator-x86_64 macosx-x86_64"
-
 options() {
-  sdk=$1
-  arch=$2
-  case "$sdk" in
-    iphoneos|iphonesimulator)
+  combo=$1
+  case "$combo" in
+    iphoneos-*|iphonesimulator-*)
       echo -mios-version-min=13.0
       ;;
   esac
-  case "$sdk" in
-    iphoneos)
+  case "$combo" in
+    iphoneos-*)
       echo -target $arch-ios
       ;;
-    iphonesimulator)
+    iphonesimulator-*)
       echo -target $arch-ios-simulator
       ;;
-    macosx)
+    macosx-*)
       echo -target $arch-macos
       ;;
   esac
 }
 
-if [ $# -eq 0 ]; then
-  echo "usage: $0 <wasm3-dir> <combo> .., where combo is all or $default" 1>&2
-  exit 1
-fi
-
-wasmdir=$1
-shift
-
-if [ $# -eq 1 -a $1 = all ]; then
-  args="$DEFAULT"
-else
-  args=$@
-fi
-echo $args
-
 compile() {
-  sdk=$1
-  arch=$2
-  clang=$3
-  ar=$4
-  sdkpath=$5
+  combo=$1
+  sdk=$(echo $combo|cut -d- -f1)
+  arch=$(echo $combo|cut -d- -f2)
+  clang="$(xcrun --sdk $sdk --find clang)"
+  ar="$(xcrun --sdk $sdk --find ar)"
+  sdkpath="$(xcrun --sdk $sdk --show-sdk-path)"
   opts=$(options "$sdk" "$arch")
-  objdir="objects-$sdk-$arch"
+  echo sdk: $sdk, arch: $arch, opts: $(echo $opts|tr '\n' ' ')
+
+  objdir="objects-$combo"
   rm -rf "$objdir"
   mkdir "$objdir"
   echo "$sdk-$arch"
   (cd "$objdir"
    for f in "$wasmdir"/source/*.c; do
      echo - $(basename "$f")
-     (set -o xtrace
-      "$clang" -c "$f" $opts \
-        -isysroot "$sdkpath" \
-        -arch $arch \
-        -Dd_m3HasWASI \
-        -fembed-bitcode-marker)
+     "$clang" -c "$f" $opts \
+       -isysroot "$sdkpath" \
+       -arch $arch \
+       -Dd_m3HasWASI \
+       -fembed-bitcode-marker
    done)
-  mkdir -p "lib/$sdk-$arch"
-  (set -o xtrace
-   "$ar" rcs "lib/$sdk-$arch/$LIBNAME" "$objdir"/*)
+  mkdir -p "lib/$combo"
+  "$ar" rcs "lib/$sdk-$arch/$LIBNAME" "$objdir"/*
 }
 
-for arg in $args; do
-  sdk=$(echo $arg|cut -d- -f1)
-  arch=$(echo $arg|cut -d- -f2)
-  echo sdk: $sdk, arch: $arch
-  compile $sdk $arch \
-   "$(xcrun --sdk $sdk --find clang)" \
-    $(xcrun --sdk $sdk --find ar) \
-    $(xcrun --sdk $sdk --show-sdk-path)
+combos="iphoneos-arm64 iphonesimulator-arm64 iphonesimulator-x86_64 macosx-x86_64 macosx-arm64"
+
+for combo in $combos; do
+  compile $combo
 done
+
+# first create the fat libraries for each platform
+mkdir -p lib/iphonesimulator
+lipo -create lib/iphonesimulator-*/libm3.a  -output lib/iphonesimulator/libm3.a
+mkdir -p lib/iphoneos
+lipo -create lib/iphoneos-*/libm3.a -output lib/iphoneos/libm3.a
+mkdir -p lib/macosx
+lipo -create lib/macosx-*/libm3.a -output lib/macosx/libm3.a
+# then create the xcframework for all platforms
+mkdir -p wasm3-include
+cp "$wasmdir"/source/*.h wasm3-include
+rm -rf lib/m3.xcframework
+xcodebuild -create-xcframework \
+   -library lib/iphoneos/libm3.a \
+   -headers wasm3-include \
+   -library lib/iphonesimulator/libm3.a \
+   -headers wasm3-include \
+   -library lib/macosx/libm3.a \
+   -headers wasm3-include \
+   -output lib/m3.xcframework

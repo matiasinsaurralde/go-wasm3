@@ -4,9 +4,10 @@ package wasm3
 #cgo                                 CFLAGS:  -I${SRCDIR}/include
 #cgo darwin                          LDFLAGS: -framework Security -lm -lm3
 #cgo darwin,amd64,!ios,!iossimulator LDFLAGS: -L${SRCDIR}/lib/macosx-x86_64
-#cgo darwin,arm64,ios,!iossimulator  LDFLAGS: -L${SRCDIR}/lib/iphoneos-arm64
-#cgo darwin,arm64,ios,iossimulator   LDFLAGS: -L${SRCDIR}/lib/iphonesimulator-arm64
+#cgo darwin,arm64,!ios,!iossimulator LDFLAGS: -L${SRCDIR}/lib/macosx-arm64
 #cgo darwin,amd64,ios,iossimulator   LDFLAGS: -L${SRCDIR}/lib/iphonesimulator-x86_64
+#cgo darwin,arm64,ios,iossimulator   LDFLAGS: -L${SRCDIR}/lib/iphonesimulator-arm64
+#cgo darwin,arm64,ios,!iossimulator  LDFLAGS: -L${SRCDIR}/lib/iphoneos-arm64
 #cgo linux                           LDFLAGS: -lm3 -lm
 #cgo linux,arm64,android             LDFLAGS: -L${SRCDIR}/lib/android-aarch64
 #cgo linux,amd64,android             LDFLAGS: -L${SRCDIR}/lib/android-x86_64
