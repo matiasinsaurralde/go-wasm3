@@ -125,6 +125,19 @@ For more details check [this](https://github.com/matiasinsaurralde/go-wasm3/tree
 
 This is a WIP. Stay tuned!
 
+## Supported platforms
+
+The package contains static libraries of `wasm3` for the following platforms,
+that are enabled in `wasm3.go` using `cgo`.
+
+- iphoneos: arm64
+- iphonesimulator: arm64, x86_64
+- macosx: arm64, x86_64
+- android: aarch64, x86_64
+- linux-x86_64
+
+Additionally, an xcframework with all darwin platforms is available under `lib/`.
+
 ## Related projects
 
 A Rust wrapper is available [here](https://github.com/Veykril/wasm3-rs).
